@@ -1,0 +1,115 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify tag matches client version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(grep -m1 '^version' client/arg.ggo | cut -d'"' -f2)"
+          if [ "$tag" != "$version" ]; then
+            echo "Tag v$tag does not match client/arg.ggo version $version" >&2
+            exit 1
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build linux-x86_64
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: export
+          outputs: type=local,dest=/tmp/artifacts/linux-x86_64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
+
+      - name: Prepare Linux artifacts
+        run: |
+          artifact_dir="/tmp/artifacts/linux-x86_64"
+          if [ ! -d "$artifact_dir" ]; then
+            echo "Expected Linux artifact directory $artifact_dir" >&2
+            ls -laR /tmp/artifacts 2>/dev/null || true
+            exit 1
+          fi
+          cd "$artifact_dir"
+          rm -f provenance.json
+          ls -la
+          if [ ! -f rctlcli ]; then
+            echo "Expected rctlcli in Linux artifact output" >&2
+            exit 1
+          fi
+          file rctlcli | grep -qi "statically linked"
+          staging="$(mktemp -d)"
+          cp rctlcli "$staging/rctlcli"
+          chmod +x "$staging/rctlcli"
+          cat > "$staging/README.txt" << 'READMEOF'
+          rctlcli Linux static build
+
+          Extract this archive, then run:
+
+            ./rctlcli --help
+
+          If your file manager or archive tool did not preserve
+          executable permissions, run:
+
+            chmod +x rctlcli
+            ./rctlcli --help
+          READMEOF
+          tar --owner=0 --group=0 --numeric-owner -czf rctlcli-linux-x86_64.tar.gz -C "$staging" rctlcli README.txt
+          rm -rf "$staging" rctlcli
+          ls -la
+          if [ ! -f rctlcli-linux-x86_64.tar.gz ]; then
+            echo "Expected rctlcli-linux-x86_64.tar.gz in Linux artifact output" >&2
+            exit 1
+          fi
+          artifact_count="$(find . -maxdepth 1 -type f -printf '.' | wc -c)"
+          if [ "$artifact_count" -ne 1 ]; then
+            echo "Expected exactly one Linux release artifact, found $artifact_count:" >&2
+            find . -maxdepth 1 -type f -printf '%f\n' >&2
+            exit 1
+          fi
+
+      - name: List artifacts
+        run: ls -laR /tmp/artifacts/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rctlcli-linux-x86_64
+          path: /tmp/artifacts/linux-x86_64/*
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/release-artifacts
+          pattern: rctlcli-*
+          merge-multiple: true
+
+      - name: List release files
+        run: ls -la /tmp/release-artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: /tmp/release-artifacts/*
+          generate_release_notes: true

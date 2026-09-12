@@ -49,6 +49,7 @@
 static char cmd[CMDLEN];
 static char buf[BUFLEN];
 static struct sockaddr_in seraddr;
+static char connected_host[64] = {0};
 
 static in_addr_t r_server(int num)
 {
@@ -128,6 +129,9 @@ static int r_connect()
 			if(!connect(fd, (void *)&seraddr, addr_len) && 
 				tcp_alive(fd)) {
 				sys_debug("connect success\n");
+				strncpy(connected_host, serverip[i],
+					sizeof(connected_host) - 1);
+				connected_host[sizeof(connected_host) - 1] = 0;
 				return fd;
 			}
 			sys_debug("connect failed\n");
@@ -235,7 +239,7 @@ static void bashfrom()
 		return;
 	}
 
-	if( ssltcp_connect(ssl) < 0) {
+	if( ssltcp_connect(ssl, connected_host[0] ? connected_host : NULL) < 0) {
 		sys_err("connect ssl failed\n");
 		close(fd);
 		return;
@@ -339,7 +343,7 @@ reconnect:
 	SSL *ssl = ssltcp_ssl(fd);
 	if(!ssl) goto reconnect;
 
-	if(ssltcp_connect(ssl) < 0) {
+	if(ssltcp_connect(ssl, connected_host[0] ? connected_host : NULL) < 0) {
 		ssltcp_free(ssl);
 		goto reconnect;
 	}

@@ -22,7 +22,7 @@
 void ssltcp_init(int isserver);
 SSL *ssltcp_ssl(int fd);
 int ssltcp_accept(SSL *ssl);
-int ssltcp_connect(SSL *ssl);
+int ssltcp_connect(SSL *ssl, const char *hostname);
 int ssltcp_read(SSL *ssl, char *buf, int num);
 int ssltcp_write(SSL *ssl, char *buf, int num);
 int ssltcp_shutdown(SSL *ssl);

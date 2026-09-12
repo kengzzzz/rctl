@@ -1,0 +1,10 @@
+.git
+.github
+dist
+client/rctlcli
+server/rctlser
+client/cmdline*
+**/*.o
+**/*.a
+cscope.*
+tags

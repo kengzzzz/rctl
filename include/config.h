@@ -18,9 +18,15 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
+#ifndef CERT_FILE
 #define CERT_FILE 	"/etc/rctl/rctl_cert.pem"
+#endif
+#ifndef PRIV_FILE
 #define PRIV_FILE 	"/etc/rctl/rctl_priv.pem"
+#endif
+#ifndef CA_FILE
 #define CA_FILE 	"/etc/ssl/certs/wirelesser_ca.crt"
+#endif
 
 static char serverip[][50] = {
 	"127.0.0.1",

@@ -3,13 +3,32 @@ TOPDIR = $(CURDIR)
 all: rctlser rctlcli
 
 CC?=gcc
+AR?=ar
+RANLIB?=ranlib
 CFLAGS?=-Wall -Wno-unused-function -Wno-unused-value -Wno-unused-variable -Wno-unused-but-set-variable
 CFLAGS+=-I. -I$(TOPDIR)/include
 # CFLAGS+=-g -DDEBUG
 CFLAGS+=-D_GNU_SOURCE
-LDFLAGS+=-lpthread -lssl -lcrypto -lreadline -lncurses
+LDFLAGS+=-lpthread -lssl -lcrypto
+SERVER_LDFLAGS?=$(LDFLAGS) -lreadline -lncurses
+CLIENT_LDFLAGS?=$(LDFLAGS)
 STRIP=strip
-export CC CFLAGS LDFLAGS STRIP
+export CC AR RANLIB CFLAGS LDFLAGS SERVER_LDFLAGS CLIENT_LDFLAGS STRIP
+
+ifeq ($(STATIC),1)
+LDFLAGS+=-static
+SERVER_LDFLAGS+=-static
+CLIENT_LDFLAGS+=-static
+endif
+
+ifeq ($(LTO),1)
+CFLAGS+=-O2 -flto -ffat-lto-objects -ffunction-sections -fdata-sections -fno-semantic-interposition
+LDFLAGS+=-O2 -flto -Wl,--gc-sections -s
+SERVER_LDFLAGS+=-O2 -flto -Wl,--gc-sections -s
+CLIENT_LDFLAGS+=-O2 -flto -Wl,--gc-sections -s
+AR=gcc-ar
+RANLIB=gcc-ranlib
+endif
 
 LIBDIR=$(TOPDIR)/lib
 LIB=$(LIBDIR)/rctl.a

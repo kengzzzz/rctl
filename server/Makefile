@@ -4,7 +4,8 @@ FILE=$(wildcard *.c)
 OBJ = $(FILE:.c=.o)
 
 rctlser:$(OBJ) $(LIB)
-	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@
+	$(CC) $(CFLAGS) $^ $(SERVER_LDFLAGS) -o $@
+	@if [ "$(LTO)" = "1" ] || [ "$(STATIC)" = "1" ]; then $(STRIP) --strip-all $@; fi
 
 %.o:%.c
 	$(CC) $(CFLAGS) -c $^ -o $@

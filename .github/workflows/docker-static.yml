@@ -1,0 +1,33 @@
+name: static-client
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  static-client:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build static client and export binary
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: export
+          outputs: type=local,dest=./dist
+
+      - name: Inspect binary
+        run: |
+          ls -lh ./dist/
+          file ./dist/rctlcli
+          file ./dist/rctlcli | grep -qi "statically linked"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rctlcli-static
+          path: ./dist/rctlcli
+          if-no-files-found: error
