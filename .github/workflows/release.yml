@@ -47,37 +47,36 @@ jobs:
           cd "$artifact_dir"
           rm -f provenance.json
           ls -la
-          if [ ! -f rctlcli ]; then
-            echo "Expected rctlcli in Linux artifact output" >&2
-            exit 1
-          fi
-          file rctlcli | grep -qi "statically linked"
-          staging="$(mktemp -d)"
-          cp rctlcli "$staging/rctlcli"
-          chmod +x "$staging/rctlcli"
-          cat > "$staging/README.txt" << 'READMEOF'
-          rctlcli Linux static build
+          for binary in rctlcli rctlser; do
+            if [ ! -f "$binary" ]; then
+              echo "Expected $binary in Linux artifact output" >&2
+              exit 1
+            fi
+            file "$binary" | grep -qi "statically linked"
+            staging="$(mktemp -d)"
+            cp "$binary" "$staging/$binary"
+            chmod +x "$staging/$binary"
+            cat > "$staging/README.txt" << 'READMEOF'
+          rctl Linux static build
 
-          Extract this archive, then run:
-
-            ./rctlcli --help
-
-          If your file manager or archive tool did not preserve
-          executable permissions, run:
-
-            chmod +x rctlcli
-            ./rctlcli --help
+          Extract this archive preserving executable permissions.
+          The client requires a trusted CA certificate (RCTL_CA_FILE).
+          The server requires a certificate and matching private key
+          (RCTL_CERT_FILE and RCTL_PRIV_FILE).
+          The server certificate must match the client's configured hostname/IP.
+          The interactive server also requires terminal data (e.g. ncurses terminfo).
           READMEOF
-          tar --owner=0 --group=0 --numeric-owner -czf rctlcli-linux-x86_64.tar.gz -C "$staging" rctlcli README.txt
-          rm -rf "$staging" rctlcli
+            tar --owner=0 --group=0 --numeric-owner -czf "$binary-linux-x86_64.tar.gz" -C "$staging" "$binary" README.txt
+            rm -rf "$staging" "$binary"
+          done
           ls -la
-          if [ ! -f rctlcli-linux-x86_64.tar.gz ]; then
-            echo "Expected rctlcli-linux-x86_64.tar.gz in Linux artifact output" >&2
+          if [ ! -f rctlcli-linux-x86_64.tar.gz ] || [ ! -f rctlser-linux-x86_64.tar.gz ]; then
+            echo "Expected client and server archives in Linux artifact output" >&2
             exit 1
           fi
           artifact_count="$(find . -maxdepth 1 -type f -printf '.' | wc -c)"
-          if [ "$artifact_count" -ne 1 ]; then
-            echo "Expected exactly one Linux release artifact, found $artifact_count:" >&2
+          if [ "$artifact_count" -ne 2 ]; then
+            echo "Expected exactly two Linux release artifacts, found $artifact_count:" >&2
             find . -maxdepth 1 -type f -printf '%f\n' >&2
             exit 1
           fi
@@ -88,8 +87,9 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rctlcli-linux-x86_64
+          name: rctl-linux-x86_64
           path: /tmp/artifacts/linux-x86_64/*
+          if-no-files-found: error
 
   release:
     needs: build
@@ -102,7 +102,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: /tmp/release-artifacts
-          pattern: rctlcli-*
+          pattern: rctl-*
           merge-multiple: true
 
       - name: List release files
@@ -112,4 +112,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: /tmp/release-artifacts/*
+          fail_on_unmatched_files: true
           generate_release_notes: true

@@ -1,4 +1,4 @@
-name: static-client
+name: static-binaries
 
 on:
   push:
@@ -6,28 +6,32 @@ on:
   workflow_dispatch:
 
 jobs:
-  static-client:
+  static-binaries:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Build static client and export binary
+      - name: Build and export static binaries
         uses: docker/build-push-action@v6
         with:
           context: .
           target: export
           outputs: type=local,dest=./dist
 
-      - name: Inspect binary
+      - name: Inspect binaries
         run: |
           ls -lh ./dist/
-          file ./dist/rctlcli
-          file ./dist/rctlcli | grep -qi "statically linked"
+          for binary in rctlcli rctlser; do
+            file "./dist/$binary"
+            file "./dist/$binary" | grep -qi "statically linked"
+          done
 
       - uses: actions/upload-artifact@v4
         with:
-          name: rctlcli-static
-          path: ./dist/rctlcli
+          name: rctl-static
+          path: |
+            ./dist/rctlcli
+            ./dist/rctlser
           if-no-files-found: error
