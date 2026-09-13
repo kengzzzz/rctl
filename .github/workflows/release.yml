@@ -8,6 +8,22 @@ on:
 
 jobs:
   build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            arch: x86_64
+          - platform: linux/arm64
+            arch: arm64
+          - platform: linux/arm/v7
+            arch: armv7
+          - platform: linux/arm/v6
+            arch: armv6
+          - platform: linux/386
+            arch: "386"
+          - platform: linux/riscv64
+            arch: riscv64
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,23 +38,29 @@ jobs:
             exit 1
           fi
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build linux-x86_64
+      - name: Build linux-${{ matrix.arch }}
         uses: docker/build-push-action@v6
         with:
           context: .
           target: export
-          outputs: type=local,dest=/tmp/artifacts/linux-x86_64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          platforms: ${{ matrix.platform }}
+          outputs: type=local,dest=/tmp/artifacts/linux-${{ matrix.arch }}
+          cache-from: type=gha,scope=linux-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=linux-${{ matrix.arch }}
           provenance: false
           sbom: false
 
       - name: Prepare Linux artifacts
+        env:
+          ARCH: ${{ matrix.arch }}
         run: |
-          artifact_dir="/tmp/artifacts/linux-x86_64"
+          artifact_dir="/tmp/artifacts/linux-$ARCH"
           if [ ! -d "$artifact_dir" ]; then
             echo "Expected Linux artifact directory $artifact_dir" >&2
             ls -laR /tmp/artifacts 2>/dev/null || true
@@ -66,11 +88,11 @@ jobs:
           The server certificate must match the client's configured hostname/IP.
           The interactive server also requires terminal data (e.g. ncurses terminfo).
           READMEOF
-            tar --owner=0 --group=0 --numeric-owner -czf "$binary-linux-x86_64.tar.gz" -C "$staging" "$binary" README.txt
+            tar --owner=0 --group=0 --numeric-owner -czf "$binary-linux-$ARCH.tar.gz" -C "$staging" "$binary" README.txt
             rm -rf "$staging" "$binary"
           done
           ls -la
-          if [ ! -f rctlcli-linux-x86_64.tar.gz ] || [ ! -f rctlser-linux-x86_64.tar.gz ]; then
+          if [ ! -f "rctlcli-linux-$ARCH.tar.gz" ] || [ ! -f "rctlser-linux-$ARCH.tar.gz" ]; then
             echo "Expected client and server archives in Linux artifact output" >&2
             exit 1
           fi
@@ -87,8 +109,8 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rctl-linux-x86_64
-          path: /tmp/artifacts/linux-x86_64/*
+          name: rctl-linux-${{ matrix.arch }}
+          path: /tmp/artifacts/linux-${{ matrix.arch }}/*
           if-no-files-found: error
 
   release:
