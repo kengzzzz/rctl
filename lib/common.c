@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <sys/socket.h>
 #include <pthread.h>
+#include "config.h"
 
 int Socket(int domain, int type, int protocol)
 {
@@ -141,7 +142,7 @@ int Setsockopt(int socket, int level, int option_name,
 
 char *getmacstr(unsigned char *mac)
 {
-	char *macstr = Malloc(17);
+	char *macstr = Malloc(MACSTR);
 	if(!macstr) return NULL;
 	sprintf(macstr, "%02x:%02x:%02x:%02x:%02x:%02x",
 		(mac)[0],(mac)[1],(mac)[2],
