@@ -87,7 +87,7 @@ void cmd_sendcmd()
 {
 	printf("Input class:\n");
 	char classname[DEVID_LEN];
-	scanf("%s", classname);
+	scanf("%32s", classname);
 	fllush_stdin();
 
 	printf("Input cmd:\n");

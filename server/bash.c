@@ -156,7 +156,7 @@ void cmd_bashto()
 {
 	printf("Input mac:\n");
 	char macstr[MACSTR];
-	scanf("%s", macstr);
+	scanf("%17s", macstr);
 
 	char mac[ETH_ALEN];
 	macstr_to_mac(macstr, mac);
