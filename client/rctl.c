@@ -296,6 +296,7 @@ static void getmac(unsigned char *dmac, char *nic)
 
 	struct ifreq req;
 	strncpy(req.ifr_name, nic, IFNAMSIZ-1);
+	req.ifr_name[IFNAMSIZ-1] = 0;
 	if(ioctl(sock, SIOCGIFHWADDR, &req) < 0) {
 		sys_err("get %s mac failed: %s\n", 
 			nic, strerror(errno));
@@ -360,7 +361,7 @@ reconnect:
 	while(1) {
 		/* max command len should less than
 		 * CMDLEN, so ret always complete */
-		ret = ssltcp_read(ssl, cmd, CMDLEN);
+		ret = ssltcp_read(ssl, cmd, CMDLEN - 1);
 		if(ret <= 0) {
 			ssl_free(ssl);
 			goto reconnect;
@@ -372,11 +373,11 @@ reconnect:
 			continue;
 		}
 
-		strncat(cmd, " 2>&1", CMDLEN - strlen(cmd));
+		strncat(cmd, " 2>&1", CMDLEN - strlen(cmd) - 1);
 		FILE *fp; int size;
 		fp = popen(cmd, "r"); 
 		if(!fp) {
-			sprintf(buf, "exec fail: %s\n", cmd);
+			snprintf(buf, BUFLEN, "exec fail: %s\n", cmd);
 			ret = ssltcp_write(ssl, buf, strlen(buf));
 			if(ret <= 0) {
 				ssl_free(ssl);
@@ -388,7 +389,7 @@ reconnect:
 				size = fread(buf, 1, CMDLEN, fp);
 				/* some command have no output */
 				if(isfirst && size == 0) {
-					sprintf(buf, "exec success: %s\n", cmd);
+					snprintf(buf, BUFLEN, "exec success: %s\n", cmd);
 					ret = ssltcp_write(ssl, buf, strlen(buf));
 					if(ret <= 0) {
 						ssl_free(ssl);
